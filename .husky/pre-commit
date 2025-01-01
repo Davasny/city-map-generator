@@ -1,0 +1,2 @@
+# no stash means no backup, by that we will see exactly what is changing by pre-commit hook
+npx lint-staged --no-stash
