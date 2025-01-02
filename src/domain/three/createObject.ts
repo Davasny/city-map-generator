@@ -2,13 +2,19 @@ import { Feature } from "geojson";
 import * as THREE from "three";
 import { convertCoordsToMercator } from "@/utils/coordsHelpers";
 
-export const createObject = (feature: Feature, scene: THREE.Scene): void => {
+export const createObject = (
+  feature: Feature,
+  scene: THREE.Scene,
+  color: string,
+  overrideLevel?: number,
+  overrideZ?: number,
+): void => {
   if (!("coordinates" in feature.geometry)) {
     console.log("Skipping feature without coordinates");
     return;
   }
 
-  let levels = 1;
+  let levels = 5;
   if (feature.properties && "building:levels" in feature.properties) {
     levels = parseInt(feature.properties["building:levels"]) * 5;
   }
@@ -54,12 +60,19 @@ export const createObject = (feature: Feature, scene: THREE.Scene): void => {
   }
 
   const geometry = new THREE.ExtrudeGeometry(shape, {
-    depth: levels,
+    depth: overrideLevel || levels,
     bevelEnabled: false,
   });
 
-  const material = new THREE.MeshStandardMaterial({ color: 0x00ff00 });
+  const material = new THREE.MeshStandardMaterial({
+    color: color,
+    side: THREE.DoubleSide,
+  });
   const mesh = new THREE.Mesh(geometry, material);
+
+  if (overrideZ) {
+    mesh.position.z = overrideZ;
+  }
 
   scene.add(mesh);
 };

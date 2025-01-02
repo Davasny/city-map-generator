@@ -11,7 +11,7 @@ export const createControls = (
   },
 ) => {
   const controls = new OrbitControls(camera, container);
-  controls.minDistance = 1;
+  controls.minDistance = 0.01;
   controls.maxDistance = 5000000;
   controls.target = new THREE.Vector3(
     initialCameraTarget.x,

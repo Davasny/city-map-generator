@@ -20,6 +20,7 @@
     "@chakra-ui/react": "3.2.4",
     "@emotion/react": "11.14.0",
     "@mapbox/sphericalmercator": "2.0.1",
+    "@tanstack/react-query": "5.62.11",
     "@types/geojson": "7946.0.15",
     "@types/osmtogeojson": "2.2.34",
     "@types/three": "0.171.0",

@@ -13,6 +13,8 @@ import { createScene } from "@/domain/three/createScene";
 import { createCamera } from "@/domain/three/createCamera";
 import { createRenderer } from "@/domain/three/createRenderer";
 import { createControls } from "@/domain/three/createControls";
+import { getBoundaries } from "@/domain/api/getBoundaries";
+import { useQuery } from "@tanstack/react-query";
 
 const NAVBAR_HEIGHT_PX = 64;
 
@@ -24,6 +26,13 @@ const LandingPage = () => {
   const firstPolygon = geoFeatures.find((f) => f.geometry.type === "Polygon");
 
   let [baseX, baseY] = [0, 0];
+
+  const boundaries = useQuery({
+    queryKey: ["Czyżyny", "district"],
+    queryFn: () => getBoundaries("Czyżyny", "district"),
+  });
+
+  console.log(boundaries.data);
 
   if (firstPolygon) {
     const geometry = firstPolygon.geometry as Polygon;
@@ -55,7 +64,14 @@ const LandingPage = () => {
     });
 
     geoFeatures.forEach(
-      (f) => sceneRef.current && createObject(f, sceneRef.current),
+      (f) =>
+        sceneRef.current &&
+        createObject(f, sceneRef.current, "#898b9c", undefined, 0.5),
+    );
+
+    boundaries.data?.features?.forEach(
+      (f) =>
+        sceneRef.current && createObject(f, sceneRef.current, "#55cd67", -100),
     );
 
     return () => {
@@ -68,7 +84,7 @@ const LandingPage = () => {
         sceneRef.current = null;
       }
     };
-  }, [baseX, baseY, geoFeatures]);
+  }, [baseX, baseY, boundaries.data?.features, geoFeatures]);
 
   return (
     <Flex flexDir="column">

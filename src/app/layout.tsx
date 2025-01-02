@@ -1,11 +1,11 @@
-import { Provider as ChakraProvider } from "@/components/ui/provider";
 import { ReactNode } from "react";
+import { Providers } from "@/components/Providers";
 
 const Layout = async ({ children }: { children: ReactNode }) => {
   return (
     <html lang="en" suppressHydrationWarning>
       <body>
-        <ChakraProvider>{children}</ChakraProvider>
+        <Providers>{children}</Providers>
       </body>
     </html>
   );
