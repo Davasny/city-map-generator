@@ -51,11 +51,6 @@ const LandingPage = () => {
 
     scene.background = new THREE.Color("#FFFFFF");
 
-    // --- axes --- //
-
-    const axesHelper = new THREE.AxesHelper(5);
-    scene.add(axesHelper);
-
     // --- lights --- //
 
     const ambientLight = new THREE.AmbientLight(0x000000);
@@ -99,7 +94,7 @@ const LandingPage = () => {
     orbitControlRef.current.maxDistance = 5000000;
     orbitControlRef.current.target = new THREE.Vector3(baseX, baseY, 10);
 
-    camera.position.set(baseX, baseY, 20);
+    camera.position.set(baseX, baseY, 2000);
     orbitControlRef.current.update();
 
     // --- geometry --- //
