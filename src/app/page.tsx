@@ -1,20 +1,47 @@
 "use client";
 
 import { Box, Flex } from "@chakra-ui/react";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef } from "react";
 import * as THREE from "three";
-import { ArcballControls } from "three/examples/jsm/controls/ArcballControls.js";
 import { Button } from "@/components/ui/button";
 import { handleStlExport } from "@/utils/handleStlExport";
+// @ts-expect-error
+import { OrbitControls } from "three/examples/jsm/controls/OrbitControls";
+import { convertCoordsToMercator } from "@/utils/coordsHelpers";
+
+const street = {
+  type: "Feature",
+  properties: {
+    "@id": "way/79814116",
+    building: "yes",
+    "building:levels": "2",
+  },
+  geometry: {
+    type: "Polygon",
+    coordinates: [
+      [
+        [20.0080945, 50.0698825],
+        [20.0071929, 50.069945],
+        [20.0070295, 50.0689732],
+        [20.0079311, 50.0689108],
+        [20.0080945, 50.0698825],
+      ],
+    ],
+  },
+  id: "way/79814116",
+};
+
+const NAVBAR_HEIGHT_PX = 64;
 
 const LandingPage = () => {
-  const [isGizmosVisible, setIsGizmosVisible] = useState(true);
-
   const threeContainer = useRef<HTMLCanvasElement>(null);
   const sceneRef = useRef<THREE.Scene | null>(null);
-  const arcballControlRef = useRef<ArcballControls | null>(null);
+  const orbitControlRef = useRef<OrbitControls | null>(null);
 
-  const navbarHeightPx = 64;
+  const streetCoordinates = street.geometry.coordinates[0].map(([x, y]) =>
+    convertCoordsToMercator(x, y),
+  );
+  const [baseX, baseY] = streetCoordinates[0];
 
   useEffect(() => {
     if (!threeContainer.current) return;
@@ -29,7 +56,13 @@ const LandingPage = () => {
 
     scene.background = new THREE.Color("#FFFFFF");
 
+    // --- axes --- //
+
+    const axesHelper = new THREE.AxesHelper(5);
+    scene.add(axesHelper);
+
     // --- lights --- //
+
     const ambientLight = new THREE.AmbientLight(0x000000);
     scene.add(ambientLight);
 
@@ -51,40 +84,58 @@ const LandingPage = () => {
       75,
       window.innerWidth / window.innerHeight,
       0.1,
-      1000,
+      100000000,
     );
 
     // --- renderer --- //
 
     const renderer = new THREE.WebGLRenderer();
-    renderer.setSize(window.innerWidth, window.innerHeight - navbarHeightPx);
+    renderer.setSize(window.innerWidth, window.innerHeight - NAVBAR_HEIGHT_PX);
+    renderer.setAnimationLoop(() => {
+      renderer.render(scene, camera);
+    });
+
     threeContainer.current.appendChild(renderer.domElement);
 
     // --- controls --- //
 
-    arcballControlRef.current = new ArcballControls(
-      camera,
-      threeContainer.current,
-      scene,
-    );
-    arcballControlRef.current.addEventListener("change", function () {
-      if (scene) renderer.render(scene, camera);
-    });
-    // arcballControlRef.current.setGizmosVisible(false)
+    orbitControlRef.current = new OrbitControls(camera, threeContainer.current);
+    orbitControlRef.current.minDistance = 1;
+    orbitControlRef.current.maxDistance = 5000000;
+    orbitControlRef.current.target = new THREE.Vector3(baseX, baseY, 10);
 
-    camera.position.set(20, 20, 20);
-    arcballControlRef.current.update();
+    camera.position.set(baseX, baseY, 20);
+    orbitControlRef.current.update();
 
     // --- geometry --- //
 
-    const geometry = new THREE.BoxGeometry(30, 0.2, 3);
-    const material = new THREE.MeshStandardMaterial({ color: 0x049ef4 });
-    const cube = new THREE.Mesh(geometry, material);
+    const shape = new THREE.Shape();
+    streetCoordinates.forEach((coord, index) => {
+      const [x, y] = [coord[0], coord[1]];
 
-    scene.add(cube);
+      if (index === 0) {
+        shape.moveTo(x, y);
+      } else {
+        shape.lineTo(x, y);
+      }
+    });
 
-    // render after all
-    renderer.render(scene, camera);
+    // Close the shape if not already closed
+    if (
+      streetCoordinates[0] !== streetCoordinates[streetCoordinates.length - 1]
+    ) {
+      const [lon, lat] = streetCoordinates[0];
+      shape.lineTo(lon, lat);
+    }
+
+    const geometry = new THREE.ExtrudeGeometry(shape, {
+      depth: 10,
+      bevelEnabled: false,
+    });
+
+    const material = new THREE.MeshStandardMaterial({ color: 0x00ff00 });
+    const mesh = new THREE.Mesh(geometry, material);
+    scene.add(mesh);
 
     return () => {
       if (threeContainer.current) {
@@ -96,12 +147,12 @@ const LandingPage = () => {
         sceneRef.current = null;
       }
     };
-  }, []);
+  }, [baseX, baseY, streetCoordinates]);
 
   return (
     <Flex flexDir="column">
       <Flex
-        h={`${navbarHeightPx}px`}
+        h={`${NAVBAR_HEIGHT_PX}px`}
         w="100%"
         alignItems="center"
         justifyContent="flex-end"
@@ -110,16 +161,6 @@ const LandingPage = () => {
         p={2}
       >
         <Flex gap={2}>
-          <Button
-            onClick={() => {
-              if (arcballControlRef.current) {
-                setIsGizmosVisible(!isGizmosVisible);
-                arcballControlRef.current.setGizmosVisible(!isGizmosVisible);
-              }
-            }}
-          >
-            switch gizmos
-          </Button>
           <Button
             onClick={() =>
               sceneRef.current && handleStlExport(sceneRef.current)
