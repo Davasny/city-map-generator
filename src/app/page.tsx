@@ -54,11 +54,9 @@ const LandingPage = () => {
       y: baseY,
     });
 
-    geoFeatures.forEach((f) => {
-      const obj = createObject(f);
-      if (!obj || !sceneRef.current) return;
-      sceneRef.current.add(obj);
-    });
+    geoFeatures.forEach(
+      (f) => sceneRef.current && createObject(f, sceneRef.current),
+    );
 
     return () => {
       if (threeContainer.current) {

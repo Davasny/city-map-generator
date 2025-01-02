@@ -2,10 +2,10 @@ import { Feature } from "geojson";
 import * as THREE from "three";
 import { convertCoordsToMercator } from "@/utils/coordsHelpers";
 
-export const createObject = (feature: Feature): THREE.Mesh | null => {
+export const createObject = (feature: Feature, scene: THREE.Scene): void => {
   if (!("coordinates" in feature.geometry)) {
     console.log("Skipping feature without coordinates");
-    return null;
+    return;
   }
 
   let levels = 1;
@@ -18,7 +18,7 @@ export const createObject = (feature: Feature): THREE.Mesh | null => {
 
   if (!Array.isArray(coords)) {
     console.error("Invalid coords", coords);
-    return null;
+    return;
   }
 
   coords.forEach((coord, index) => {
@@ -61,5 +61,5 @@ export const createObject = (feature: Feature): THREE.Mesh | null => {
   const material = new THREE.MeshStandardMaterial({ color: 0x00ff00 });
   const mesh = new THREE.Mesh(geometry, material);
 
-  return mesh;
+  scene.add(mesh);
 };
