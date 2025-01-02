@@ -9,27 +9,8 @@ import { handleStlExport } from "@/utils/handleStlExport";
 import { OrbitControls } from "three/examples/jsm/controls/OrbitControls";
 import { convertCoordsToMercator } from "@/utils/coordsHelpers";
 
-const street = {
-  type: "Feature",
-  properties: {
-    "@id": "way/79814116",
-    building: "yes",
-    "building:levels": "2",
-  },
-  geometry: {
-    type: "Polygon",
-    coordinates: [
-      [
-        [20.0080945, 50.0698825],
-        [20.0071929, 50.069945],
-        [20.0070295, 50.0689732],
-        [20.0079311, 50.0689108],
-        [20.0080945, 50.0698825],
-      ],
-    ],
-  },
-  id: "way/79814116",
-};
+import geo from "../data/1.geojson";
+import { FeatureCollection, Polygon } from "geojson";
 
 const NAVBAR_HEIGHT_PX = 64;
 
@@ -38,10 +19,24 @@ const LandingPage = () => {
   const sceneRef = useRef<THREE.Scene | null>(null);
   const orbitControlRef = useRef<OrbitControls | null>(null);
 
-  const streetCoordinates = street.geometry.coordinates[0].map(([x, y]) =>
-    convertCoordsToMercator(x, y),
-  );
-  const [baseX, baseY] = streetCoordinates[0];
+  const geoFeatures = (geo as FeatureCollection).features;
+  const firstPolygon = geoFeatures.find((f) => f.geometry.type === "Polygon");
+
+  let [baseX, baseY] = [0, 0];
+
+  if (firstPolygon) {
+    const geometry = firstPolygon.geometry as Polygon;
+    [baseX, baseY] = convertCoordsToMercator(
+      geometry.coordinates[0][0][0],
+      geometry.coordinates[0][0][1],
+    );
+  }
+
+  geoFeatures.forEach((f) => {
+    if (f.geometry.type !== "Polygon") {
+      console.log(f.geometry.type);
+    }
+  });
 
   useEffect(() => {
     if (!threeContainer.current) return;
@@ -109,33 +104,66 @@ const LandingPage = () => {
 
     // --- geometry --- //
 
-    const shape = new THREE.Shape();
-    streetCoordinates.forEach((coord, index) => {
-      const [x, y] = [coord[0], coord[1]];
-
-      if (index === 0) {
-        shape.moveTo(x, y);
-      } else {
-        shape.lineTo(x, y);
+    geoFeatures.forEach((f) => {
+      if (!("coordinates" in f.geometry)) {
+        console.log("Skipping feature without coordinates");
+        return;
       }
+
+      let levels = 1;
+      if (f.properties && "building:levels" in f.properties) {
+        levels = parseInt(f.properties["building:levels"]) * 5;
+      }
+
+      const shape = new THREE.Shape();
+      const coords = f.geometry.coordinates[0];
+
+      if (!Array.isArray(coords)) {
+        console.error("Invalid coords", coords);
+        return;
+      }
+
+      coords.forEach((coord, index) => {
+        if (!Array.isArray(coord)) {
+          console.error("Invalid coord", coord);
+          return;
+        }
+
+        if (Number.isNaN(coord[0]) || Number.isNaN(coord[1])) {
+          console.error("Invalid coord", coord);
+          return;
+        }
+
+        if (typeof coord[0] !== "number" || typeof coord[1] !== "number") {
+          console.error("Invalid coord", coord);
+          return;
+        }
+
+        const [x, y] = convertCoordsToMercator(coord[0], coord[1]);
+
+        if (index === 0) {
+          shape.moveTo(x, y);
+        } else {
+          shape.lineTo(x, y);
+        }
+      });
+
+      // Close the shape if not already closed
+      if (coords[0] !== coords[coords.length - 1]) {
+        // @ts-expect-error
+        const [lon, lat] = convertCoordsToMercator(coords[0][0], coords[0][1]);
+        shape.lineTo(lon, lat);
+      }
+
+      const geometry = new THREE.ExtrudeGeometry(shape, {
+        depth: levels,
+        bevelEnabled: false,
+      });
+
+      const material = new THREE.MeshStandardMaterial({ color: 0x00ff00 });
+      const mesh = new THREE.Mesh(geometry, material);
+      scene.add(mesh);
     });
-
-    // Close the shape if not already closed
-    if (
-      streetCoordinates[0] !== streetCoordinates[streetCoordinates.length - 1]
-    ) {
-      const [lon, lat] = streetCoordinates[0];
-      shape.lineTo(lon, lat);
-    }
-
-    const geometry = new THREE.ExtrudeGeometry(shape, {
-      depth: 10,
-      bevelEnabled: false,
-    });
-
-    const material = new THREE.MeshStandardMaterial({ color: 0x00ff00 });
-    const mesh = new THREE.Mesh(geometry, material);
-    scene.add(mesh);
 
     return () => {
       if (threeContainer.current) {
@@ -147,7 +175,7 @@ const LandingPage = () => {
         sceneRef.current = null;
       }
     };
-  }, [baseX, baseY, streetCoordinates]);
+  }, [baseX, baseY]);
 
   return (
     <Flex flexDir="column">

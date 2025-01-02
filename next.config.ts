@@ -13,6 +13,15 @@ const nextConfig: NextConfig = {
   },
   transpilePackages: ["three"],
   reactStrictMode: false, // strict mode is not triggering reload on change in useEffect
+  webpack: (config, { buildId, dev, isServer, defaultLoaders, webpack }) => {
+    config.module.rules.push({
+      test: /\.geojson$/,
+      loader: "json-loader",
+    });
+
+    // Important: return the modified config
+    return config;
+  },
 };
 
 export default nextConfig;
