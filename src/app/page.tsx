@@ -15,15 +15,17 @@ import { createRenderer } from "@/domain/three/createRenderer";
 import { createControls } from "@/domain/three/createControls";
 import { getBoundaries } from "@/domain/api/getBoundaries";
 import { useQuery } from "@tanstack/react-query";
+import { findCentroid } from "@/utils/getPolygonCenterPoint";
+import { getBuildings } from "@/domain/api/getBuildings";
+import { getRoads } from "@/domain/api/getRoads";
 
 const NAVBAR_HEIGHT_PX = 64;
 
 const LandingPage = () => {
   const threeContainer = useRef<HTMLCanvasElement>(null);
   const sceneRef = useRef<THREE.Scene | null>(null);
-
-  const geoFeatures = (geo as FeatureCollection).features;
-  const firstPolygon = geoFeatures.find((f) => f.geometry.type === "Polygon");
+  const cameraRef = useRef<THREE.Camera | null>(null);
+  const rendererRef = useRef<THREE.Renderer | null>(null);
 
   let [baseX, baseY] = [0, 0];
 
@@ -32,47 +34,63 @@ const LandingPage = () => {
     queryFn: () => getBoundaries("Czyżyny", "district"),
   });
 
-  console.log(boundaries.data);
+  // const buildings = useQuery({
+  //   queryKey: ["Czyżyny", "buildings"],
+  //   queryFn: () => getBuildings("Czyżyny"),
+  // });
 
-  if (firstPolygon) {
-    const geometry = firstPolygon.geometry as Polygon;
-    [baseX, baseY] = convertCoordsToMercator(
-      geometry.coordinates[0][0][0],
-      geometry.coordinates[0][0][1],
+  const roads = useQuery({
+    queryKey: ["Czyżyny", "roads"],
+    queryFn: () => getRoads("Czyżyny"),
+  });
+
+  if (boundaries.data) {
+    const centerPoint = findCentroid(
+      boundaries.data?.features[0]?.geometry.coordinates[0],
     );
+
+    if (centerPoint && centerPoint.length === 2) {
+      [baseX, baseY] = convertCoordsToMercator(centerPoint[0], centerPoint[1]);
+    }
   }
 
-  geoFeatures.forEach((f) => {
-    if (f.geometry.type !== "Polygon") {
-      console.log(f.geometry.type);
-    }
-  });
+  // buildings.data?.features.forEach(
+  //   (f) =>
+  //     sceneRef.current &&
+  //     createObject(f, sceneRef.current, "#898b9c", undefined, 0.5),
+  // );
+
+  roads.data?.features.forEach(
+    (f) =>
+      sceneRef.current &&
+      createObject(f, sceneRef.current, "#898b9c", undefined, 0.5),
+  );
+
+  // boundaries.data?.features?.forEach(
+  //   (f) =>
+  //     sceneRef.current && createObject(f, sceneRef.current, "#55cd67", -100),
+  // );
+
+  if (cameraRef.current && threeContainer.current) {
+    createControls(cameraRef.current, threeContainer.current, {
+      x: baseX,
+      y: baseY,
+    });
+  }
 
   useEffect(() => {
     if (!threeContainer.current) return;
     if (!sceneRef.current) {
       sceneRef.current = createScene();
+
+      cameraRef.current = createCamera();
+      rendererRef.current = createRenderer(
+        sceneRef.current,
+        cameraRef.current,
+        NAVBAR_HEIGHT_PX,
+      );
+      threeContainer.current.appendChild(rendererRef.current.domElement);
     }
-
-    const camera = createCamera();
-    const renderer = createRenderer(sceneRef.current, camera, NAVBAR_HEIGHT_PX);
-    threeContainer.current.appendChild(renderer.domElement);
-
-    createControls(camera, threeContainer.current, {
-      x: baseX,
-      y: baseY,
-    });
-
-    geoFeatures.forEach(
-      (f) =>
-        sceneRef.current &&
-        createObject(f, sceneRef.current, "#898b9c", undefined, 0.5),
-    );
-
-    boundaries.data?.features?.forEach(
-      (f) =>
-        sceneRef.current && createObject(f, sceneRef.current, "#55cd67", -100),
-    );
 
     return () => {
       if (threeContainer.current) {
@@ -84,7 +102,7 @@ const LandingPage = () => {
         sceneRef.current = null;
       }
     };
-  }, [baseX, baseY, boundaries.data?.features, geoFeatures]);
+  }, [baseX, baseY]);
 
   return (
     <Flex flexDir="column">

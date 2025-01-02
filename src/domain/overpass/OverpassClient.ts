@@ -1,15 +1,26 @@
-import wretch, { Wretch } from "wretch";
+import { Wretch } from "wretch";
 import osmtogeojson from "osmtogeojson";
+import { apiClient } from "@/api/api";
 
 export class OverpassClient {
   private readonly wretch: Wretch;
 
   constructor() {
-    this.wretch = wretch().url("https://overpass-api.de/api/interpreter");
+    this.wretch = apiClient.url("https://overpass-api.de/api/interpreter");
   }
 
   private getOverpassBody = (query: string) => {
     return `data=${encodeURIComponent(query)}`;
+  };
+
+  private getOverpassData = async (query: string) => {
+    const response = await this.wretch
+      .post(this.getOverpassBody(query))
+      .json<object>();
+
+    const geojson = osmtogeojson(response);
+
+    return geojson;
   };
 
   getBoundaries = async (name: string, type: "city" | "district") => {
@@ -30,12 +41,32 @@ export class OverpassClient {
       out geom;
     `;
 
-    const response = await this.wretch
-      .post(this.getOverpassBody(overpassQuery))
-      .json<object>();
+    return this.getOverpassData(overpassQuery);
+  };
 
-    const geojson = osmtogeojson(response);
+  getRoads = async (name: string) => {
+    const overpassQuery = `
+      [out:json][timeout:25];
+      (
+        area["name"="${name}"]["boundary"="administrative"]->.search;
+        way["highway"]["highway"!="footway"]["highway"!="path"](area.search);
+      );
+      out geom;
+    `;
 
-    return geojson;
+    return this.getOverpassData(overpassQuery);
+  };
+
+  getBuildings = async (name: string) => {
+    const overpassQuery = `
+      [out:json][timeout:25];
+      (
+        area["name"="${name}"]["boundary"="administrative"]->.search;
+        way["building"](area.search);
+      );
+      out geom;
+    `;
+
+    return this.getOverpassData(overpassQuery);
   };
 }
