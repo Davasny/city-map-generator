@@ -4,15 +4,15 @@ import { Box, Flex } from "@chakra-ui/react";
 import { useEffect, useRef } from "react";
 import * as THREE from "three";
 import { Button } from "@/components/ui/button";
-import { handleStlExport } from "@/utils/handleStlExport";
+import { handleStlExport } from "@/domain/three/handleStlExport";
 import { convertCoordsToMercator } from "@/utils/coordsHelpers";
 import geo from "../data/1.geojson";
 import { FeatureCollection, Polygon } from "geojson";
-import { createObject } from "@/utils/createObject";
-import { createScene } from "@/utils/createScene";
-import { createCamera } from "@/utils/createCamera";
-import { createRenderer } from "@/utils/createRenderer";
-import { createControls } from "@/utils/createControls";
+import { createObject } from "@/domain/three/createObject";
+import { createScene } from "@/domain/three/createScene";
+import { createCamera } from "@/domain/three/createCamera";
+import { createRenderer } from "@/domain/three/createRenderer";
+import { createControls } from "@/domain/three/createControls";
 
 const NAVBAR_HEIGHT_PX = 64;
 
