@@ -6,8 +6,6 @@ import * as THREE from "three";
 import { Button } from "@/components/ui/button";
 import { handleStlExport } from "@/domain/three/handleStlExport";
 import { convertCoordsToMercator } from "@/utils/coordsHelpers";
-import geo from "../data/1.geojson";
-import { FeatureCollection, Polygon } from "geojson";
 import { createObject } from "@/domain/three/createObject";
 import { createScene } from "@/domain/three/createScene";
 import { createCamera } from "@/domain/three/createCamera";
@@ -18,6 +16,7 @@ import { useQuery } from "@tanstack/react-query";
 import { findCentroid } from "@/utils/getPolygonCenterPoint";
 import { getBuildings } from "@/domain/api/getBuildings";
 import { getRoads } from "@/domain/api/getRoads";
+import lineStringToPolygon from "@/utils/lineStringToPolygon";
 
 const NAVBAR_HEIGHT_PX = 64;
 
@@ -34,10 +33,10 @@ const LandingPage = () => {
     queryFn: () => getBoundaries("Czyżyny", "district"),
   });
 
-  // const buildings = useQuery({
-  //   queryKey: ["Czyżyny", "buildings"],
-  //   queryFn: () => getBuildings("Czyżyny"),
-  // });
+  const buildings = useQuery({
+    queryKey: ["Czyżyny", "buildings"],
+    queryFn: () => getBuildings("Czyżyny"),
+  });
 
   const roads = useQuery({
     queryKey: ["Czyżyny", "roads"],
@@ -45,31 +44,43 @@ const LandingPage = () => {
   });
 
   if (boundaries.data) {
-    const centerPoint = findCentroid(
-      boundaries.data?.features[0]?.geometry.coordinates[0],
-    );
+    const geometry = boundaries.data.features[0].geometry;
+    if (geometry.type === "Polygon") {
+      // @ts-expect-error
+      const centerPoint = findCentroid(geometry.coordinates[0]);
 
-    if (centerPoint && centerPoint.length === 2) {
-      [baseX, baseY] = convertCoordsToMercator(centerPoint[0], centerPoint[1]);
+      if (centerPoint && centerPoint.length === 2) {
+        [baseX, baseY] = convertCoordsToMercator(
+          centerPoint[0],
+          centerPoint[1],
+        );
+      }
     }
   }
 
-  // buildings.data?.features.forEach(
-  //   (f) =>
-  //     sceneRef.current &&
-  //     createObject(f, sceneRef.current, "#898b9c", undefined, 0.5),
-  // );
-
-  roads.data?.features.forEach(
+  buildings.data?.features.forEach(
     (f) =>
       sceneRef.current &&
       createObject(f, sceneRef.current, "#898b9c", undefined, 0.5),
   );
 
-  // boundaries.data?.features?.forEach(
-  //   (f) =>
-  //     sceneRef.current && createObject(f, sceneRef.current, "#55cd67", -100),
-  // );
+  roads.data?.features.forEach((road) => {
+    let newRoad = road;
+
+    if (road.type === "Feature" && road.geometry.type === "LineString") {
+      // @ts-expect-error
+      newRoad = lineStringToPolygon(road, 0.0001);
+    }
+
+    return (
+      sceneRef.current && createObject(newRoad, sceneRef.current, "#55c3cd", 2)
+    );
+  });
+
+  boundaries.data?.features?.forEach(
+    (f) =>
+      sceneRef.current && createObject(f, sceneRef.current, "#55cd67", -100),
+  );
 
   if (cameraRef.current && threeContainer.current) {
     createControls(cameraRef.current, threeContainer.current, {
@@ -102,7 +113,7 @@ const LandingPage = () => {
         sceneRef.current = null;
       }
     };
-  }, [baseX, baseY]);
+  }, []);
 
   return (
     <Flex flexDir="column">
