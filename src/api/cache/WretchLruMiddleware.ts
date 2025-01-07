@@ -4,96 +4,67 @@ import {
   WretchOptions,
   WretchResponse,
 } from "wretch";
+
 import { LRUCache } from "lru-cache";
 
-// Node.js built-in crypto (or alternative in the browser)
-import { createHash } from "crypto";
+const getCacheKey = (url: string, opts: WretchOptions): string => {
+  const optsString = opts ? JSON.stringify(opts, Object.keys(opts).sort()) : "";
+  return `${url}:${optsString}`;
+};
 
-interface CachedResponseData {
+interface CachedResponse {
   body: ArrayBuffer;
-  headers: Record<string, string>;
-  status: number;
-  statusText: string;
-}
-
-/**
- * Create a brand-new Response from cached data.
- */
-function buildFreshResponse(data: CachedResponseData) {
-  return new Response(data.body, {
-    status: data.status,
-    statusText: data.statusText,
-    headers: data.headers,
-  });
-}
-
-/**
- * Create a stable key by hashing the URL + stringified request body.
- */
-function createCacheKey(url: string, body?: unknown): string {
-  // Convert the request body to a string
-  let bodyString = "";
-
-  // If body is an object, we can do JSON stringification
-  if (typeof body === "object" && body !== null) {
-    bodyString = JSON.stringify(body);
-  } else if (typeof body === "string") {
-    bodyString = body;
-  }
-  // ... handle other body types as needed
-
-  return createHash("md5")
-    .update(url + bodyString)
-    .digest("hex");
+  headers: Response["headers"];
+  status: Response["status"];
+  statusText: Response["statusText"];
 }
 
 export const WretchLruMiddleware = (
-  lruOptions: LRUCache.Options<string, CachedResponseData, unknown>,
+  lruOptions: LRUCache.Options<string, CachedResponse, unknown> = {
+    ttl: 1000 * 60 * 60, // 1h
+    max: 1000,
+  },
 ): ConfiguredMiddleware => {
-  const cache = new LRUCache<string, CachedResponseData>(lruOptions);
+  const cache = new LRUCache<string, CachedResponse>(lruOptions);
 
   const middleware = (next: FetchLike): FetchLike => {
-    return async (
+    const checkCache = async (
       url: string,
       opts: WretchOptions,
     ): Promise<WretchResponse> => {
-      // Create a unique key from URL + request body
-      const cacheKey = createCacheKey(url, opts.body);
+      const cacheKey = getCacheKey(url, opts);
 
-      // Check if we already have a cached response
-      const cached = cache.get(cacheKey);
-      if (cached) {
-        console.log("Cache hit", url);
-        return buildFreshResponse(cached);
+      const cachedResponse = cache.get(cacheKey);
+      if (cachedResponse) {
+        console.log(`Cache hit for ${url}`);
+
+        return new Response(cachedResponse.body, {
+          headers: cachedResponse.headers,
+          status: cachedResponse.status,
+          statusText: cachedResponse.statusText,
+        }) as WretchResponse;
       }
 
-      // Otherwise fetch from network
-      console.log("Cache miss", url);
-      const response = await next(url, opts);
+      return next(url, opts).then(async (response) => {
+        console.log(`Cache miss for ${url}`);
+        const newResponse = {
+          body: await response.arrayBuffer(),
+          headers: response.headers,
+          status: response.status,
+          statusText: response.statusText,
+        };
 
-      // Decide if you want to cache this response
-      if (response.ok) {
-        const clone = response.clone();
-        // Buffer the body
-        const body = await clone.arrayBuffer();
+        cache.set(cacheKey, newResponse);
 
-        // Convert headers into a plain object
-        const headers: Record<string, string> = {};
-        clone.headers.forEach((value, key) => {
-          headers[key] = value;
-        });
-
-        // Store in the cache
-        cache.set(cacheKey, {
-          body,
-          headers,
-          status: clone.status,
-          statusText: clone.statusText,
-        });
-      }
-
-      return response;
+        return new Response(newResponse.body, {
+          headers: newResponse.headers,
+          status: newResponse.status,
+          statusText: newResponse.statusText,
+        }) as WretchResponse;
+      });
     };
+
+    return checkCache;
   };
 
   return middleware;
