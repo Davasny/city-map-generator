@@ -11,7 +11,8 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "next lint"
+    "lint": "next lint",
+    "fmt": "prettier --write src/"
   },
   "lint-staged": {
     "*.{ts,tsx}": "prettier --write"
@@ -24,6 +25,7 @@
     "@types/geojson": "7946.0.15",
     "@types/osmtogeojson": "2.2.34",
     "@types/three": "0.171.0",
+    "camera-controls": "2.9.0",
     "json-loader": "0.5.7",
     "lru-cache": "^11.0.2",
     "next": "15.1.3",

@@ -1,26 +1,32 @@
-// @ts-expect-error
-import { OrbitControls } from "three/examples/jsm/controls/OrbitControls";
 import * as THREE from "three";
+import CameraControls from "camera-controls";
 
 export const createControls = (
-  camera: THREE.Camera,
+  camera: THREE.PerspectiveCamera,
   container: HTMLCanvasElement,
   initialCameraTarget: {
     x: number;
     y: number;
   },
 ) => {
-  const controls = new OrbitControls(camera, container);
-  controls.minDistance = 0.01;
-  controls.maxDistance = 5000000;
-  controls.target = new THREE.Vector3(
+  const controls = new CameraControls(camera, container);
+
+  controls.smoothTime = 0.05;
+  controls.draggingSmoothTime = 0.05;
+  controls.truckSpeed = 2;
+
+  controls.setLookAt(
     initialCameraTarget.x,
     initialCameraTarget.y,
-    10,
+    0,
+    initialCameraTarget.x,
+    initialCameraTarget.y,
+    0,
   );
 
-  camera.position.set(initialCameraTarget.x, initialCameraTarget.y, 2000);
-  controls.update();
+  controls.dolly(-5000);
+
+  console.log(initialCameraTarget);
 
   return controls;
 };

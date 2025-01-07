@@ -17,14 +17,18 @@ import { findCentroid } from "@/utils/getPolygonCenterPoint";
 import { getBuildings } from "@/domain/api/getBuildings";
 import { getRoads } from "@/domain/api/getRoads";
 import lineStringToPolygon from "@/utils/lineStringToPolygon";
+import CameraControls from "camera-controls";
+
+CameraControls.install({ THREE: THREE });
 
 const NAVBAR_HEIGHT_PX = 64;
 
 const LandingPage = () => {
   const threeContainer = useRef<HTMLCanvasElement>(null);
   const sceneRef = useRef<THREE.Scene | null>(null);
-  const cameraRef = useRef<THREE.Camera | null>(null);
-  const rendererRef = useRef<THREE.Renderer | null>(null);
+  const cameraRef = useRef<THREE.PerspectiveCamera | null>(null);
+  const rendererRef = useRef<THREE.WebGLRenderer | null>(null);
+  const controlsRef = useRef<CameraControls | null>(null);
 
   let [baseX, baseY] = [0, 0];
 
@@ -82,25 +86,36 @@ const LandingPage = () => {
       sceneRef.current && createObject(f, sceneRef.current, "#55cd67", -100),
   );
 
-  if (cameraRef.current && threeContainer.current) {
-    createControls(cameraRef.current, threeContainer.current, {
-      x: baseX,
-      y: baseY,
-    });
-  }
-
   useEffect(() => {
     if (!threeContainer.current) return;
     if (!sceneRef.current) {
       sceneRef.current = createScene();
 
       cameraRef.current = createCamera();
+
+      controlsRef.current = createControls(
+        cameraRef.current,
+        threeContainer.current,
+        {
+          x: baseX,
+          y: baseY,
+        },
+      );
+
       rendererRef.current = createRenderer(
         sceneRef.current,
         cameraRef.current,
+        controlsRef.current,
         NAVBAR_HEIGHT_PX,
       );
+
       threeContainer.current.appendChild(rendererRef.current.domElement);
+
+      // // Create a box geometry and material
+      const geometry = new THREE.BoxGeometry(1, 1, 1);
+      const material = new THREE.MeshBasicMaterial({ color: 0x00ff00 });
+      const cube = new THREE.Mesh(geometry, material);
+      sceneRef.current.add(cube);
     }
 
     return () => {
@@ -109,11 +124,12 @@ const LandingPage = () => {
         threeContainer.current.removeChild(threeContainer.current.firstChild!);
       }
 
-      if (sceneRef.current) {
-        sceneRef.current = null;
-      }
+      sceneRef.current = null;
+      cameraRef.current = null;
+      rendererRef.current = null;
+      controlsRef.current = null;
     };
-  }, []);
+  }, [baseX, baseY]);
 
   return (
     <Flex flexDir="column">

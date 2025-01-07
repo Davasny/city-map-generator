@@ -1,10 +1,14 @@
 import * as THREE from "three";
 
 export const createCamera = () => {
-  return new THREE.PerspectiveCamera(
-    75,
+  const camera = new THREE.PerspectiveCamera(
+    45,
     window.innerWidth / window.innerHeight,
     0.1,
-    100000000,
+    1000000000,
   );
+
+  camera.up = new THREE.Vector3(0, 0, 1);
+
+  return camera;
 };
