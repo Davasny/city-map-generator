@@ -18,6 +18,7 @@ import { getBuildings } from "@/domain/api/getBuildings";
 import { getRoads } from "@/domain/api/getRoads";
 import lineStringToPolygon from "@/utils/lineStringToPolygon";
 import CameraControls from "camera-controls";
+import { DEFAULTS } from "@/consts/defaults";
 
 CameraControls.install({ THREE: THREE });
 
@@ -29,8 +30,6 @@ const LandingPage = () => {
   const cameraRef = useRef<THREE.PerspectiveCamera | null>(null);
   const rendererRef = useRef<THREE.WebGLRenderer | null>(null);
   const controlsRef = useRef<CameraControls | null>(null);
-
-  let [baseX, baseY] = [0, 0];
 
   const boundaries = useQuery({
     queryKey: ["Czyżyny", "district"],
@@ -54,10 +53,8 @@ const LandingPage = () => {
       const centerPoint = findCentroid(geometry.coordinates[0]);
 
       if (centerPoint && centerPoint.length === 2) {
-        [baseX, baseY] = convertCoordsToMercator(
-          centerPoint[0],
-          centerPoint[1],
-        );
+        const [x, y] = convertCoordsToMercator(centerPoint[0], centerPoint[1]);
+        controlsRef.current?.setLookAt(x, y, 2, x, y, 0);
       }
     }
   }
@@ -65,7 +62,7 @@ const LandingPage = () => {
   buildings.data?.features.forEach(
     (f) =>
       sceneRef.current &&
-      createObject(f, sceneRef.current, "#898b9c", undefined, 0.5),
+      createObject(f, sceneRef.current, "#8f3939", undefined, 0),
   );
 
   roads.data?.features.forEach((road) => {
@@ -77,13 +74,15 @@ const LandingPage = () => {
     }
 
     return (
-      sceneRef.current && createObject(newRoad, sceneRef.current, "#55c3cd", 2)
+      sceneRef.current &&
+      createObject(newRoad, sceneRef.current, "#9b9b9b", DEFAULTS.street_height)
     );
   });
 
   boundaries.data?.features?.forEach(
     (f) =>
-      sceneRef.current && createObject(f, sceneRef.current, "#55cd67", -100),
+      sceneRef.current &&
+      createObject(f, sceneRef.current, "#4db65c", DEFAULTS.base_height),
   );
 
   useEffect(() => {
@@ -96,10 +95,6 @@ const LandingPage = () => {
       controlsRef.current = createControls(
         cameraRef.current,
         threeContainer.current,
-        {
-          x: baseX,
-          y: baseY,
-        },
       );
 
       rendererRef.current = createRenderer(
@@ -111,11 +106,7 @@ const LandingPage = () => {
 
       threeContainer.current.appendChild(rendererRef.current.domElement);
 
-      // // Create a box geometry and material
-      const geometry = new THREE.BoxGeometry(1, 1, 1);
-      const material = new THREE.MeshBasicMaterial({ color: 0x00ff00 });
-      const cube = new THREE.Mesh(geometry, material);
-      sceneRef.current.add(cube);
+      rendererRef.current.render(sceneRef.current, cameraRef.current);
     }
 
     return () => {
@@ -129,7 +120,7 @@ const LandingPage = () => {
       rendererRef.current = null;
       controlsRef.current = null;
     };
-  }, [baseX, baseY]);
+  }, []);
 
   return (
     <Flex flexDir="column">

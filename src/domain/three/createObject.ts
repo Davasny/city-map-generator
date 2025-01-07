@@ -1,6 +1,7 @@
 import { Feature } from "geojson";
 import * as THREE from "three";
 import { convertCoordsToMercator } from "@/utils/coordsHelpers";
+import { DEFAULTS } from "@/consts/defaults";
 
 export const createObject = (
   feature: Feature,
@@ -14,9 +15,12 @@ export const createObject = (
     return;
   }
 
-  let levels = 5;
+  let levels = DEFAULTS.building_level_height * DEFAULTS.building_levels;
+
   if (feature.properties && "building:levels" in feature.properties) {
-    levels = parseInt(feature.properties["building:levels"]) * 5;
+    levels =
+      parseInt(feature.properties["building:levels"]) *
+      DEFAULTS.building_level_height;
   }
 
   const shape = new THREE.Shape();

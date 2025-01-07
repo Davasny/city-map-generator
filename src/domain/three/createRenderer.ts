@@ -11,6 +11,7 @@ export const createRenderer = (
   renderer.setSize(window.innerWidth, window.innerHeight - navbarHeight);
 
   const clock = new THREE.Clock();
+
   renderer.setAnimationLoop(() => {
     const delta = clock.getDelta();
     const hasControlsUpdated = controls.update(delta);
