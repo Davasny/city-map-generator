@@ -3,33 +3,40 @@ import osmtogeojson from "osmtogeojson";
 import { apiClient } from "@/api/api";
 
 export class OverpassClient {
+  private static instance: OverpassClient;
   private readonly wretch: Wretch;
 
   constructor() {
     this.wretch = apiClient.url("https://overpass-api.de/api/interpreter");
   }
 
-  private getOverpassBody = (query: string) => {
-    return `data=${encodeURIComponent(query)}`;
-  };
+  // Singleton instance getter
+  public static getInstance(): OverpassClient {
+    if (!OverpassClient.instance) {
+      OverpassClient.instance = new OverpassClient();
+    }
+    return OverpassClient.instance;
+  }
 
-  private getOverpassData = async (query: string) => {
+  private getOverpassBody(query: string): string {
+    return `data=${encodeURIComponent(query)}`;
+  }
+
+  private async getOverpassData(query: string): Promise<object> {
     const response = await this.wretch
       .post(this.getOverpassBody(query))
       .json<object>();
 
-    const geojson = osmtogeojson(response);
+    return osmtogeojson(response);
+  }
 
-    return geojson;
-  };
+  public async getBoundaries(
+    name: string,
+    type: "city" | "district",
+  ): Promise<object> {
+    const adminLevel = type === "city" ? 8 : type === "district" ? 9 : null;
 
-  getBoundaries = async (name: string, type: "city" | "district") => {
-    let adminLevel;
-    if (type === "city") {
-      adminLevel = 8;
-    } else if (type === "district") {
-      adminLevel = 9;
-    } else {
+    if (!adminLevel) {
       throw new Error("Invalid type. Valid values are 'city' or 'district'.");
     }
 
@@ -42,9 +49,9 @@ export class OverpassClient {
     `;
 
     return this.getOverpassData(overpassQuery);
-  };
+  }
 
-  getRoads = async (name: string) => {
+  public async getRoads(name: string): Promise<object> {
     const overpassQuery = `
       [out:json][timeout:25];
       (
@@ -55,9 +62,9 @@ export class OverpassClient {
     `;
 
     return this.getOverpassData(overpassQuery);
-  };
+  }
 
-  getBuildings = async (name: string) => {
+  public async getBuildings(name: string): Promise<object> {
     const overpassQuery = `
       [out:json][timeout:25];
       (
@@ -68,5 +75,5 @@ export class OverpassClient {
     `;
 
     return this.getOverpassData(overpassQuery);
-  };
+  }
 }

@@ -23,7 +23,7 @@ export async function GET(req: NextRequest) {
   }
 
   try {
-    const overpassClient = new OverpassClient();
+    const overpassClient = OverpassClient.getInstance();
     const response = await overpassClient.getBoundaries(name, type);
 
     return new Response(JSON.stringify(response), {
